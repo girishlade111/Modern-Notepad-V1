@@ -1,0 +1,358 @@
+import { useState, useRef, useEffect } from 'react'
+import { Button } from "/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "/components/ui/card"
+import { Textarea } from "/components/ui/textarea"
+import { 
+  Bold, 
+  Italic, 
+  Underline, 
+  AlignLeft, 
+  AlignCenter, 
+  AlignRight, 
+  AlignJustify,
+  Plus,
+  X,
+  Save,
+  FileInput,
+  Printer
+} from 'lucide-react'
+
+type Document = {
+  id: string
+  title: string
+  content: string
+  isDirty: boolean
+  fontFamily: string
+  fontSize: number
+  isBold: boolean
+  isItalic: boolean
+  isUnderlined: boolean
+  textAlign: 'left' | 'center' | 'right' | 'justify'
+  textColor: string
+}
+
+export default function ModernNotepad() {
+  const [documents, setDocuments] = useState<Document[]>(() => {
+    // Initialize with one empty document
+    return [{
+      id: crypto.randomUUID(),
+      title: 'Untitled',
+      content: '',
+      isDirty: false,
+      fontFamily: 'Arial',
+      fontSize: 14,
+      isBold: false,
+      isItalic: false,
+      isUnderlined: false,
+      textAlign: 'left',
+      textColor: '#000000'
+    }]
+  })
+  const [activeDocumentId, setActiveDocumentId] = useState<string>(documents[0].id)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const activeDocument = documents.find(doc => doc.id === activeDocumentId) || documents[0]
+
+  // Focus the textarea when the active document changes
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.focus()
+    }
+  }, [activeDocumentId])
+
+  const createNewDocument = () => {
+    const newDoc: Document = {
+      id: crypto.randomUUID(),
+      title: 'Untitled',
+      content: '',
+      isDirty: false,
+      fontFamily: 'Arial',
+      fontSize: 14,
+      isBold: false,
+      isItalic: false,
+      isUnderlined: false,
+      textAlign: 'left',
+      textColor: '#000000'
+    }
+    setDocuments([...documents, newDoc])
+    setActiveDocumentId(newDoc.id)
+  }
+
+  const closeDocument = (id: string) => {
+    if (documents.length <= 1) {
+      // Don't close the last document
+      return
+    }
+    const newDocs = documents.filter(doc => doc.id !== id)
+    setDocuments(newDocs)
+    // If we're closing the active document, switch to another one
+    if (id === activeDocumentId) {
+      setActiveDocumentId(newDocs[0].id)
+    }
+  }
+
+  const updateActiveDocument = (updates: Partial<Document>) => {
+    setDocuments(documents.map(doc => {
+      if (doc.id === activeDocumentId) {
+        return { ...doc, ...updates, isDirty: true }
+      }
+      return doc
+    }))
+  }
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    updateActiveDocument({ content: e.target.value })
+  }
+
+  const toggleBold = () => {
+    updateActiveDocument({ isBold: !activeDocument.isBold })
+  }
+
+  const toggleItalic = () => {
+    updateActiveDocument({ isItalic: !activeDocument.isItalic })
+  }
+
+  const toggleUnderline = () => {
+    updateActiveDocument({ isUnderlined: !activeDocument.isUnderlined })
+  }
+
+  const setTextAlign = (align: 'left' | 'center' | 'right' | 'justify') => {
+    updateActiveDocument({ textAlign: align })
+  }
+
+  const changeFontFamily = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    updateActiveDocument({ fontFamily: e.target.value })
+  }
+
+  const changeFontSize = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    updateActiveDocument({ fontSize: parseInt(e.target.value) })
+  }
+
+  const changeTextColor = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateActiveDocument({ textColor: e.target.value })
+  }
+
+  const saveDocument = () => {
+    // In a real app, this would save to file system or cloud storage
+    // For this demo, we'll just mark it as not dirty
+    updateActiveDocument({ isDirty: false })
+    alert(`Document "${activeDocument.title}" saved!`)
+  }
+
+  const printDocument = () => {
+    window.print()
+  }
+
+  const openFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const content = event.target?.result as string
+      const newDoc: Document = {
+        id: crypto.randomUUID(),
+        title: file.name,
+        content,
+        isDirty: false,
+        fontFamily: 'Arial',
+        fontSize: 14,
+        isBold: false,
+        isItalic: false,
+        isUnderlined: false,
+        textAlign: 'left',
+        textColor: '#000000'
+      }
+      setDocuments([...documents, newDoc])
+      setActiveDocumentId(newDoc.id)
+    }
+    reader.readAsText(file)
+  }
+
+  const getTextAreaStyle = () => {
+    return {
+      fontFamily: activeDocument.fontFamily,
+      fontSize: `${activeDocument.fontSize}px`,
+      fontWeight: activeDocument.isBold ? 'bold' : 'normal',
+      fontStyle: activeDocument.isItalic ? 'italic' : 'normal',
+      textDecoration: activeDocument.isUnderlined ? 'underline' : 'none',
+      textAlign: activeDocument.textAlign,
+      color: activeDocument.textColor,
+      minHeight: 'calc(100vh - 200px)'
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="bg-primary text-primary-foreground p-2">
+        <div className="container mx-auto flex justify-between items-center">
+          <h1 className="text-xl font-bold">Modern Notepad</h1>
+          <div className="flex space-x-2">
+            <Button variant="ghost" size="sm" onClick={createNewDocument}>
+              <Plus className="h-4 w-4 mr-1" /> New
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <label className="cursor-pointer">
+                <FileInput className="h-4 w-4 mr-1" /> Open
+                <input type="file" className="hidden" onChange={openFile} accept=".txt,.md,.rtf" />
+              </label>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={saveDocument}>
+              <Save className="h-4 w-4 mr-1" /> Save
+            </Button>
+            <Button variant="ghost" size="sm" onClick={printDocument}>
+              <Printer className="h-4 w-4 mr-1" /> Print
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Tabs */}
+      <div className="bg-muted border-b">
+        <div className="container mx-auto flex overflow-x-auto">
+          {documents.map(doc => (
+            <div
+              key={doc.id}
+              className={`flex items-center px-4 py-2 border-r cursor-pointer ${doc.id === activeDocumentId ? 'bg-background' : 'bg-muted'}`}
+              onClick={() => setActiveDocumentId(doc.id)}
+            >
+              <span className="mr-2">{doc.title}{doc.isDirty && '*'}</span>
+              {documents.length > 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    closeDocument(doc.id)
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={createNewDocument}
+            className="px-4 py-2 text-muted-foreground hover:text-foreground"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Formatting Toolbar */}
+      <div className="bg-muted p-2 border-b">
+        <div className="container mx-auto flex flex-wrap items-center gap-2">
+          <select
+            value={activeDocument.fontFamily}
+            onChange={changeFontFamily}
+            className="p-1 border rounded text-sm"
+          >
+            <option value="Arial">Arial</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Verdana">Verdana</option>
+          </select>
+
+          <select
+            value={activeDocument.fontSize}
+            onChange={changeFontSize}
+            className="p-1 border rounded text-sm"
+          >
+            {[8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72].map(size => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+
+          <Button
+            variant={activeDocument.isBold ? 'default' : 'outline'}
+            size="sm"
+            onClick={toggleBold}
+          >
+            <Bold className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant={activeDocument.isItalic ? 'default' : 'outline'}
+            size="sm"
+            onClick={toggleItalic}
+          >
+            <Italic className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant={activeDocument.isUnderlined ? 'default' : 'outline'}
+            size="sm"
+            onClick={toggleUnderline}
+          >
+            <Underline className="h-4 w-4" />
+          </Button>
+
+          <div className="flex border rounded overflow-hidden">
+            <Button
+              variant={activeDocument.textAlign === 'left' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTextAlign('left')}
+            >
+              <AlignLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={activeDocument.textAlign === 'center' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTextAlign('center')}
+            >
+              <AlignCenter className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={activeDocument.textAlign === 'right' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTextAlign('right')}
+            >
+              <AlignRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={activeDocument.textAlign === 'justify' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTextAlign('justify')}
+            >
+              <AlignJustify className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <input
+            type="color"
+            value={activeDocument.textColor}
+            onChange={changeTextColor}
+            className="w-8 h-8 cursor-pointer"
+          />
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <main className="flex-grow container mx-auto p-4">
+        <Textarea
+          ref={textareaRef}
+          value={activeDocument.content}
+          onChange={handleContentChange}
+          style={getTextAreaStyle()}
+          className="w-full p-4 border rounded shadow-sm"
+          placeholder="Start typing here..."
+        />
+      </main>
+
+      {/* Status Bar */}
+      <footer className="bg-muted p-2 border-t">
+        <div className="container mx-auto flex justify-between text-sm text-muted-foreground">
+          <div>
+            {activeDocument.content.split(/\s+/).filter(word => word.length > 0).length} words, 
+            {activeDocument.content.length} characters
+          </div>
+          <div>
+            {activeDocument.fontFamily} {activeDocument.fontSize}pt
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
+}
